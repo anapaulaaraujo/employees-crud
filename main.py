@@ -1,4 +1,5 @@
 from tornado.web import Application, RequestHandler
+import tornado
 from tornado.ioloop import IOLoop
 from database import connect_db
 import json
@@ -8,14 +9,15 @@ import bcrypt
 import jwt
 from jwt.exceptions import ExpiredSignatureError
 
-
+ 
 class EmployeesHandler(RequestHandler):
 #Create a nutemployee entily with this payload
+  
   def post(self):
 
     token = self.request.headers['token']
     header_data = jwt.get_unverified_header(token)
-   
+    
     #Verificando se o token não é nulo
     try:
       token
@@ -92,11 +94,24 @@ class EmployeesHandler(RequestHandler):
 #Get all nutemployee entities from the resource
   def get(self):
 
+    token = self.request.headers['token']
+    header_data = jwt.get_unverified_header(token)
+    
+    #Verificando se o token não é nulo
     try:
-      self.request.headers['token']
+      token
     except:
       self.set_status(400)
       self.write({'message':'Token Invalido'})
+      return None
+
+    #validando se o token esta expirado
+    try:
+      payload = jwt.decode(token, 'secret', 
+      algorithms=[header_data['alg']])
+    except jwt.ExpiredSignatureError as error:
+      self.set_status(400)
+      self.write(f'Token Expirado, error: {error}')
       return None
 
     db = connect_db()
@@ -113,12 +128,26 @@ class EmployeeHandler(RequestHandler):
     
   def get(self, payload):
 
+    token = self.request.headers['token']
+    header_data = jwt.get_unverified_header(token)
+    
+    #Verificando se o token não é nulo
     try:
-      self.request.headers['token']
+      token
     except:
       self.set_status(400)
       self.write({'message':'Token Invalido'})
       return None
+
+    #validando se o token esta expirado
+    try:
+      payload = jwt.decode(token, 'secret', 
+      algorithms=[header_data['alg']])
+    except jwt.ExpiredSignatureError as error:
+      self.set_status(400)
+      self.write(f'Token Expirado, error: {error}')
+      return None
+    
 
     print(payload)
 
@@ -132,13 +161,26 @@ class EmployeeHandler(RequestHandler):
   #Update a nutemployee entily with this payload
   def put(self, payload):
 
+    token = self.request.headers['token']
+    header_data = jwt.get_unverified_header(token)
+    
+    #Verificando se o token não é nulo
     try:
-      self.request.headers['token']
+      token
     except:
       self.set_status(400)
       self.write({'message':'Token Invalido'})
       return None
 
+    #validando se o token esta expirado
+    try:
+      pay = jwt.decode(token, 'secret', 
+      algorithms=[header_data['alg']])
+    except jwt.ExpiredSignatureError as error:
+      self.set_status(400)
+      self.write(f'Token Expirado, error: {error}')
+      return None
+    
     db = connect_db()
     req = json.loads(self.request.body)
 
@@ -151,17 +193,37 @@ class EmployeeHandler(RequestHandler):
   #Delete a nutemployee entily
   def delete(self, payload):
 
+    token = self.request.headers['token']
+    header_data = jwt.get_unverified_header(token)
+    
+    #Verificando se o token não é nulo
     try:
-      self.request.headers['token']
+      token
     except:
       self.set_status(400)
       self.write({'message':'Token Invalido'})
       return None
 
+    #validando se o token esta expirado
+    try:
+      pay = jwt.decode(token, 'secret', 
+      algorithms=[header_data['alg']])
+    except jwt.ExpiredSignatureError as error:
+      self.set_status(400)
+      self.write(f'Token Expirado, error: {error}')
+      return None
+    
     db = connect_db()
     myquery = {'name':payload}
 
     x = db.delete_one(myquery)
+    
+    if x.raw_result['n'] == 0:
+      self.set_status(400)
+      self.write(f'Employee nao consta no banco de dados')
+      return None
+
+    print(x.raw_result)
     
     self.write({'response': 'employee deletado'})
 
@@ -217,6 +279,7 @@ class LoginAuthHandler(RequestHandler):
     
     self.write({'token': token}) 
 
+
 #endpoints
 def make_app():
   urls = [("/nutemployee", EmployeesHandler), 
@@ -228,6 +291,7 @@ def make_app():
 
 
 if __name__ == '__main__':
+    # app = tornado.httpserver.HTTPServer(middleware)
     app = make_app() 
     app.listen(8002) 
     IOLoop.instance().start() 
