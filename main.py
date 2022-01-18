@@ -3,10 +3,20 @@ from tornado.ioloop import IOLoop
 from database import connect_db
 import json
 from datetime import datetime
+from authentication import create_password_hashed, create_token
+import bcrypt
+
 
 class EmployeesHandler(RequestHandler):
 #Create a nutemployee entily with this payload
   def post(self):
+    try:
+      self.request.headers['token']
+    except:
+      self.set_status(400)
+      self.write({'message':'Token Invalido'})
+      return None
+
     db = connect_db()      
     req = json.loads(self.request.body)
 
@@ -66,6 +76,13 @@ class EmployeesHandler(RequestHandler):
 #Get all nutemployee entities from the resource
   def get(self):
 
+    try:
+      self.request.headers['token']
+    except:
+      self.set_status(400)
+      self.write({'message':'Token Invalido'})
+      return None
+
     db = connect_db()
     employees = []
     
@@ -77,7 +94,16 @@ class EmployeesHandler(RequestHandler):
 
 class EmployeeHandler(RequestHandler):
   #Get a single nutemployee entily
+    
   def get(self, payload):
+
+    try:
+      self.request.headers['token']
+    except:
+      self.set_status(400)
+      self.write({'message':'Token Invalido'})
+      return None
+
     print(payload)
 
     db = connect_db()
@@ -89,6 +115,13 @@ class EmployeeHandler(RequestHandler):
 
   #Update a nutemployee entily with this payload
   def put(self, payload):
+
+    try:
+      self.request.headers['token']
+    except:
+      self.set_status(400)
+      self.write({'message':'Token Invalido'})
+      return None
 
     db = connect_db()
     req = json.loads(self.request.body)
@@ -102,23 +135,78 @@ class EmployeeHandler(RequestHandler):
   #Delete a nutemployee entily
   def delete(self, payload):
 
+    try:
+      self.request.headers['token']
+    except:
+      self.set_status(400)
+      self.write({'message':'Token Invalido'})
+      return None
+
     db = connect_db()
     myquery = {'name':payload}
 
     x = db.delete_one(myquery)
     
-    except:
-      self.set_status(400)
-      self.write('Sem usuario para deletar')
-      return None
-    
     self.write({'response': 'employee deletado'})
 
+
+class SignAuthHandler(RequestHandler):
+  def post(self):
+
+    req = json.loads(self.request.body)
+
+    email = req["email"]
+    password = req["senha"]
+
+    password = create_password_hashed(password)
+    
+    #conetando e criando uma nova colletion no banco de dados
+    db = connect_db(collection='usuarios')
+    x = db.insert_one({'email': email, 'password': password})
+
+    # precisa de uma f' para converter o password(bytes) em string
+    self.write({ 'message': f'email: {email}, password: {password}'})
+
+class LoginAuthHandler(RequestHandler):
+
+  def post(self):
+
+    req = json.loads(self.request.body)
+    email = req["email"]
+    password = req["senha"]
+
+    db = connect_db(collection='usuarios')
+
+    #Consultando o db pelo email
+    query = {'email': email}
+ 
+    #Salvando o email e senha em user
+    user = db.find_one(query, { "_id": 0})
+    
+    #se nao tiver conteudo em user, ou seja, nao encontrou o email, retorna none
+    if not user:
+      self.set_status(400)
+      self.write({'response': 'email não cadastrado'}) 
+      return None
+    
+    password = password.encode('utf-8')
+    
+     #comparando o password do body com o do banco
+    if not bcrypt.checkpw(password, user['password']):
+      self.set_status(400)
+      self.write({'response': 'senha incorreta'}) 
+      return None
+
+    token = create_token(user)
+    
+    self.write({'token': token}) 
 
 #endpoints
 def make_app():
   urls = [("/nutemployee", EmployeesHandler), 
-        (r"/nutemployee/?(.*)?", EmployeeHandler)]
+        (r"/nutemployee/?(.*)?", EmployeeHandler),
+        ("/signauth", SignAuthHandler),
+        ("/loginauth", LoginAuthHandler)]
 
   return Application(urls)
 
