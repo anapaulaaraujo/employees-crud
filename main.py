@@ -5,22 +5,38 @@ import json
 from datetime import datetime
 from authentication import create_password_hashed, create_token
 import bcrypt
+import jwt
+from jwt.exceptions import ExpiredSignatureError
 
 
 class EmployeesHandler(RequestHandler):
 #Create a nutemployee entily with this payload
   def post(self):
+
+    token = self.request.headers['token']
+    header_data = jwt.get_unverified_header(token)
+   
+    #Verificando se o token não é nulo
     try:
-      self.request.headers['token']
+      token
     except:
       self.set_status(400)
       self.write({'message':'Token Invalido'})
       return None
 
+    #validando se o token esta expirado
+    try:
+      payload = jwt.decode(token, 'secret', 
+      algorithms=[header_data['alg']])
+    except jwt.ExpiredSignatureError as error:
+      self.set_status(400)
+      self.write(f'Token Expirado, error: {error}')
+      return None
+
     db = connect_db()      
     req = json.loads(self.request.body)
 
-    #Payload data error handling
+     #Payload data error handling
     try:
       name = req["name"]
       birth_date = req["birth_date"]
@@ -165,7 +181,7 @@ class SignAuthHandler(RequestHandler):
     x = db.insert_one({'email': email, 'password': password})
 
     # precisa de uma f' para converter o password(bytes) em string
-    self.write({ 'message': f'email: {email}, password: {password}'})
+    self.write({ 'message': f'usuario cadastrado, email: {email}, password: {password}'})
 
 class LoginAuthHandler(RequestHandler):
 
