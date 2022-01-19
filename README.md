@@ -1,4 +1,4 @@
-# CRUD
+# CRUD-Employees
 
 API REST para cadastro de funcionários
 
@@ -17,13 +17,13 @@ API REST para cadastro de funcionários
 git clone https://github.com/anapaulaaraujo/employees-crud.git
 ```
 
-1. Acesse a pasta do projeto pelo terminal
+2. Acesse a pasta do projeto pelo terminal
 
 ```python
 cd employees-crud
 ```
 
-1. Inicie a API
+3. Inicie a API
 
 ```python
 python main.py
@@ -50,7 +50,7 @@ Em uma API RESTful, os endpoints (URLs) definem a estrutura da API e como os usu
 
 ```json
 {
-	  "name":"teste",
+    "name":"teste",
     "birth_date":"21/10/1996",
     "gender":"M",
     "email":"teste@gmail.com",
